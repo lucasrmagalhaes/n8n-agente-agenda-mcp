@@ -1,0 +1,404 @@
+{
+  "name": "Agente de agenda MCP (Ollama local)",
+  "nodes": [
+    {
+      "parameters": {
+        "public": false,
+        "options": {}
+      },
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "b1111111-1111-4111-8111-111111111111"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "=Você é um agente responsável por manipular o Google Calendário. Você está conectado à um servidor MCP.\nSempre antes de utilizar as ferramentas de criar, reagendar ou cancelar eventos, utilize a ferramenta de listagem de eventos para verificar a disponibilidade do horário solicitado.\n---\nData atual: {{ $now.setZone('America/Sao_Paulo') }}"
+        }
+      },
+      "id": "33333333-3333-4333-8333-333333333333",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "llama3.2",
+        "options": {
+          "temperature": 0.2,
+          "numCtx": 8192,
+          "think": false
+        }
+      },
+      "id": "22222222-2222-4222-8222-222222222222",
+      "name": "Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        320,
+        520
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "PLACEHOLDER_OLLAMA",
+          "name": "Ollama local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "fromInput",
+        "contextWindowLength": 10
+      },
+      "id": "44444444-4444-4444-8444-444444444444",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        520,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Use esta ferramenta para pensar antes de agir. Ela não consulta nem altera o calendário. Use quando houver pré-requisitos, por exemplo listar eventos antes de criar, reagendar ou cancelar, e para calcular o fim como início + 30 minutos em ISO 8601 com offset -03:00."
+      },
+      "id": "55555555-5555-4555-8555-555555555555",
+      "name": "Think",
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://localhost:5678/mcp/agenda-ollama",
+        "serverTransport": "httpStreamable",
+        "authentication": "none",
+        "include": "all",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "66666666-6666-4666-8666-666666666666",
+      "name": "MCP Client",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        920,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "none",
+        "path": "agenda-ollama",
+        "instructions": "Estas ferramentas manipulam o Google Calendar no fuso America/Sao_Paulo.\nSempre chame list_google_calendar_events antes de criar, reagendar ou cancelar.\nDatas em ISO 8601 com offset -03:00 (exemplo: 2026-10-24T14:00:00-03:00).\nEventos novos duram 30 minutos (end = start + 30 min).\nAntes de cancelar ou reagendar, confirme o e-mail do participante."
+      },
+      "id": "77777777-7777-4777-8777-777777777777",
+      "name": "MCP Server Trigger",
+      "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
+      "typeVersion": 2.1,
+      "position": [
+        1340,
+        0
+      ],
+      "webhookId": "b7777777-7777-4777-8777-777777777777"
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "descriptionType": "manual",
+        "toolDescription": "Cria um evento no Google Calendar (summary, description opcional, start/end em ISO 8601 com offset -03:00, attendee). Duração de 30 minutos: end = start + 30 min. Antes, obrigatoriamente chame list_google_calendar_events.",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "COLOQUE_SEU_EMAIL@gmail.com"
+        },
+        "operation": "create",
+        "start": "={{ $fromAI('start', 'Início do evento em ISO 8601 com offset -03:00. Exemplo: 2026-10-24T14:00:00-03:00', 'string') }}",
+        "end": "={{ $fromAI('end', 'Fim do evento em ISO 8601 com offset -03:00. Duração padrão de 30 minutos: end = start + 30 min. Exemplo: 2026-10-24T14:30:00-03:00', 'string') }}",
+        "useDefaultReminders": true,
+        "additionalFields": {
+          "summary": "={{ $fromAI('summary', 'Título curto do evento.', 'string') }}",
+          "description": "={{ $fromAI('description', 'Descrição do evento. Envie string vazia se o usuário não pediu descrição.', 'string') }}",
+          "attendees": [
+            "={{ $fromAI('attendee', 'E-mail do participante. Se o usuário não informou, peça o e-mail antes de criar; não invente.', 'string') }}"
+          ],
+          "sendUpdates": "all"
+        }
+      },
+      "id": "c1111111-1111-4111-8111-111111111111",
+      "name": "create_google_calendar_event",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        240
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "PLACEHOLDER_GOOGLE_CALENDAR",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "descriptionType": "manual",
+        "toolDescription": "Lista eventos num intervalo (start/end em ISO 8601 com offset -03:00). Usar antes de criar, reagendar ou cancelar qualquer evento. Se souber o e-mail do participante, informe attendee_email para filtrar.",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "COLOQUE_SEU_EMAIL@gmail.com"
+        },
+        "operation": "getAll",
+        "returnAll": true,
+        "timeMin": "={{ $fromAI('start', 'Início do intervalo em ISO 8601 com offset -03:00. Exemplo: 2026-10-24T00:00:00-03:00', 'string') }}",
+        "timeMax": "={{ $fromAI('end', 'Fim do intervalo em ISO 8601 com offset -03:00. Exemplo: 2026-10-24T23:59:59-03:00', 'string') }}",
+        "options": {
+          "query": "={{ $fromAI('attendee_email', 'E-mail do participante para filtrar a busca. Envie string vazia se o usuário não informou e-mail.', 'string') }}",
+          "recurringEventHandling": "expand"
+        }
+      },
+      "id": "c2222222-2222-4222-8222-222222222222",
+      "name": "list_google_calendar_events",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1240,
+        240
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "PLACEHOLDER_GOOGLE_CALENDAR",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "descriptionType": "manual",
+        "toolDescription": "Reagenda pelo event_id (new_start/new_end em ISO 8601 com offset -03:00). Liste antes filtrando por e-mail do participante e pelo intervalo, e confira se o novo horário está livre.",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "COLOQUE_SEU_EMAIL@gmail.com"
+        },
+        "operation": "update",
+        "eventId": "={{ $fromAI('event_id', 'ID do evento retornado por list_google_calendar_events. Não invente.', 'string') }}",
+        "useDefaultReminders": true,
+        "updateFields": {
+          "start": "={{ $fromAI('new_start', 'Novo início em ISO 8601 com offset -03:00. Exemplo: 2026-10-25T10:00:00-03:00', 'string') }}",
+          "end": "={{ $fromAI('new_end', 'Novo fim em ISO 8601 com offset -03:00. Mantenha 30 minutos salvo pedido explícito. Exemplo: 2026-10-25T10:30:00-03:00', 'string') }}",
+          "sendUpdates": "all"
+        }
+      },
+      "id": "c3333333-3333-4333-8333-333333333333",
+      "name": "reschedule_google_calendar_event",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1440,
+        240
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "PLACEHOLDER_GOOGLE_CALENDAR",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "descriptionType": "manual",
+        "toolDescription": "Remove um evento pelo event_id. Liste antes e peça o e-mail do participante para garantir que é a mesma pessoa. Não cancele se o e-mail não corresponder ao evento.",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "COLOQUE_SEU_EMAIL@gmail.com"
+        },
+        "operation": "delete",
+        "eventId": "={{ $fromAI('event_id', 'ID do evento retornado por list_google_calendar_events, depois de confirmar o e-mail do participante.', 'string') }}",
+        "options": {
+          "sendUpdates": "all"
+        }
+      },
+      "id": "c4444444-4444-4444-8444-444444444444",
+      "name": "delete_google_calendar_event",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1640,
+        240
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "PLACEHOLDER_GOOGLE_CALENDAR",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Agente (alternativa Ollama, local e grátis)\n\nChat Trigger → AI Agent.\nPrompt: `{{ $json.chatInput }}`.\nMemória: Simple Memory, janela de 10.\nThink antes de agir.\nMCP Client aponta para a URL de produção deste workflow: `http://localhost:5678/mcp/agenda-ollama` (HTTP streamable, sem /sse).\n\nCredencial Ollama: base URL `http://ollama:11434` se o serviço do Compose estiver no ar. Modelo padrão `llama3.2` — faça `ollama pull llama3.2`. Modelos pequenos erram tool calling; se as tools não forem chamadas, troque por `qwen2.5:7b`.",
+        "height": 280,
+        "width": 560,
+        "color": 4
+      },
+      "id": "88888888-8888-4888-8888-888888888888",
+      "name": "Nota — agente",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Servidor MCP + Google Calendar\n\nQuatro tools, descrição manual (aula 16):\n- `create_google_calendar_event` — 30 min, summary, description, attendee\n- `list_google_calendar_events` — Return All, After/Before\n- `reschedule_google_calendar_event` — event_id, new_start, new_end\n- `delete_google_calendar_event` — event_id; peça o e-mail antes\n\nTroque `COLOQUE_SEU_EMAIL@gmail.com` pelo ID do calendário (seu Gmail) e selecione a credencial OAuth em cada tool. Nenhum segredo está neste arquivo.\n\nGoogle Meet é opcional: em Additional Fields → Conference Data, solução `hangoutsMeet`.",
+        "height": 300,
+        "width": 760,
+        "color": 5
+      },
+      "id": "99999999-9999-4999-8999-999999999999",
+      "name": "Nota — calendário",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        -340
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_google_calendar_event": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Trigger",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "list_google_calendar_events": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Trigger",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reschedule_google_calendar_event": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Trigger",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "delete_google_calendar_event": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Trigger",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
