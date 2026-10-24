@@ -3,10 +3,11 @@
   "nodes": [
     {
       "parameters": {
-        "public": false,
+        "public": true,
+        "mode": "hostedChat",
         "options": {}
       },
-      "id": "11111111-1111-4111-8111-111111111111",
+      "id": "2e9aabd4-566e-4ac5-a3a0-28ef33ae8d6c",
       "name": "When chat message received",
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.5,
@@ -14,7 +15,7 @@
         0,
         300
       ],
-      "webhookId": "b1111111-1111-4111-8111-111111111111"
+      "webhookId": "73ca5c2f-5bc3-4159-9dcb-f34db74d20cb"
     },
     {
       "parameters": {
@@ -24,7 +25,7 @@
           "systemMessage": "=Você é um agente responsável por manipular o Google Calendário. Você está conectado à um servidor MCP.\nSempre antes de utilizar as ferramentas de criar, reagendar ou cancelar eventos, utilize a ferramenta de listagem de eventos para verificar a disponibilidade do horário solicitado.\n---\nData atual: {{ $now.setZone('America/Sao_Paulo') }}"
         }
       },
-      "id": "33333333-3333-4333-8333-333333333333",
+      "id": "ea26a82f-db00-443b-92f1-c03cda281d37",
       "name": "AI Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -41,7 +42,7 @@
           "maxOutputTokens": 2048
         }
       },
-      "id": "22222222-2222-4222-8222-222222222222",
+      "id": "903eb8f8-e024-4bac-8960-4967a7c9277c",
       "name": "Google Gemini Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.2,
@@ -61,7 +62,7 @@
         "sessionIdType": "fromInput",
         "contextWindowLength": 10
       },
-      "id": "44444444-4444-4444-8444-444444444444",
+      "id": "81824eee-02a1-4940-b43e-2e3536235d3c",
       "name": "Simple Memory",
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.4,
@@ -74,7 +75,7 @@
       "parameters": {
         "description": "Use esta ferramenta para pensar antes de agir. Ela não consulta nem altera o calendário. Use quando houver pré-requisitos, por exemplo listar eventos antes de criar, reagendar ou cancelar, e para calcular o fim como início + 30 minutos em ISO 8601 com offset -03:00."
       },
-      "id": "55555555-5555-4555-8555-555555555555",
+      "id": "7cf41112-4c07-4b7e-9393-9cb6e1f8fb99",
       "name": "Think",
       "type": "@n8n/n8n-nodes-langchain.toolThink",
       "typeVersion": 1.1,
@@ -93,7 +94,7 @@
           "timeout": 120000
         }
       },
-      "id": "66666666-6666-4666-8666-666666666666",
+      "id": "143d1666-311f-4b8d-abc6-f3ccc380a0e8",
       "name": "MCP Client",
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "typeVersion": 1.4,
@@ -108,7 +109,7 @@
         "path": "agenda",
         "instructions": "Estas ferramentas manipulam o Google Calendar no fuso America/Sao_Paulo.\nSempre chame list_google_calendar_events antes de criar, reagendar ou cancelar.\nDatas em ISO 8601 com offset -03:00 (exemplo: 2026-10-24T14:00:00-03:00).\nEventos novos duram 30 minutos (end = start + 30 min).\nAntes de cancelar ou reagendar, confirme o e-mail do participante."
       },
-      "id": "77777777-7777-4777-8777-777777777777",
+      "id": "f98a9fa8-59ad-4165-9021-1e95d146a609",
       "name": "MCP Server Trigger",
       "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
       "typeVersion": 2.1,
@@ -116,7 +117,7 @@
         1340,
         0
       ],
-      "webhookId": "a7777777-7777-4777-8777-777777777777"
+      "webhookId": "871fec89-64c1-4292-9551-c129019331b5"
     },
     {
       "parameters": {
@@ -141,7 +142,7 @@
           "sendUpdates": "all"
         }
       },
-      "id": "c1111111-1111-4111-8111-111111111111",
+      "id": "26aefbb7-8638-43e3-8c97-fb75751eebcd",
       "name": "create_google_calendar_event",
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
@@ -160,7 +161,7 @@
       "parameters": {
         "resource": "event",
         "descriptionType": "manual",
-        "toolDescription": "Lista eventos num intervalo (start/end em ISO 8601 com offset -03:00). Usar antes de criar, reagendar ou cancelar qualquer evento. Se souber o e-mail do participante, informe attendee_email para filtrar.",
+        "toolDescription": "Lista eventos num intervalo. Somente start e end (ISO 8601 com offset -03:00) são obrigatórios. Usar antes de criar, reagendar ou cancelar qualquer evento. attendee_email é opcional: informe apenas se o usuário deu um e-mail para filtrar. Não peça e-mail só para listar.",
         "calendar": {
           "__rl": true,
           "mode": "id",
@@ -171,11 +172,11 @@
         "timeMin": "={{ $fromAI('start', 'Início do intervalo em ISO 8601 com offset -03:00. Exemplo: 2026-10-24T00:00:00-03:00', 'string') }}",
         "timeMax": "={{ $fromAI('end', 'Fim do intervalo em ISO 8601 com offset -03:00. Exemplo: 2026-10-24T23:59:59-03:00', 'string') }}",
         "options": {
-          "query": "={{ $fromAI('attendee_email', 'E-mail do participante para filtrar a busca. Envie string vazia se o usuário não informou e-mail.', 'string') }}",
+          "query": "={{ $fromAI('attendee_email', 'E-mail opcional do participante para filtrar a busca. Omita se o usuário não informou e-mail. Não peça e-mail apenas para listar.', 'string', '') }}",
           "recurringEventHandling": "expand"
         }
       },
-      "id": "c2222222-2222-4222-8222-222222222222",
+      "id": "fee9b71f-22f1-4073-9ed8-dd342847b64c",
       "name": "list_google_calendar_events",
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
@@ -194,7 +195,7 @@
       "parameters": {
         "resource": "event",
         "descriptionType": "manual",
-        "toolDescription": "Reagenda pelo event_id (new_start/new_end em ISO 8601 com offset -03:00). Liste antes filtrando por e-mail do participante e pelo intervalo, e confira se o novo horário está livre.",
+        "toolDescription": "Reagenda pelo event_id (new_start/new_end em ISO 8601 com offset -03:00). Liste antes pelo intervalo (start e end) e confira se o novo horário está livre. Filtrar a listagem por e-mail do participante é opcional.",
         "calendar": {
           "__rl": true,
           "mode": "id",
@@ -209,7 +210,7 @@
           "sendUpdates": "all"
         }
       },
-      "id": "c3333333-3333-4333-8333-333333333333",
+      "id": "d65de2b8-8546-42f0-a88e-bd3f2aa72e87",
       "name": "reschedule_google_calendar_event",
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
@@ -240,7 +241,7 @@
           "sendUpdates": "all"
         }
       },
-      "id": "c4444444-4444-4444-8444-444444444444",
+      "id": "e7918e65-8c1c-4a2e-a8d8-818b4ed8a414",
       "name": "delete_google_calendar_event",
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
@@ -262,7 +263,7 @@
         "width": 560,
         "color": 4
       },
-      "id": "88888888-8888-4888-8888-888888888888",
+      "id": "386bfe42-ed79-4266-aff5-551aec3a1b9a",
       "name": "Nota — agente",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -278,7 +279,7 @@
         "width": 760,
         "color": 5
       },
-      "id": "99999999-9999-4999-8999-999999999999",
+      "id": "444f4abc-079f-471c-9e9e-61ec6147f20e",
       "name": "Nota — calendário",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,

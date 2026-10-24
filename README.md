@@ -83,7 +83,7 @@ Cole a saída no `N8N_ENCRYPTION_KEY` do `.env` **antes** do primeiro start. Se 
 docker compose up -d
 ```
 
-Abra [http://localhost:5678](http://localhost:5678) e crie o usuário dono da instância. A porta está presa a `127.0.0.1`. O servidor MCP deste exemplo não tem autenticação; não exponha a porta na rede.
+Abra [http://localhost:5678](http://localhost:5678) e crie o usuário dono da instância. A porta está presa a `127.0.0.1`. O servidor MCP deste exemplo não tem autenticação; não exponha a porta na rede. O chat do workflow também é público e sem login: a URL hospedada só deve ser aberta em localhost ou numa rede confiável.
 
 O fuso do container e do workflow é `America/Sao_Paulo`. Isso entra no `$now` junto com o `.setZone(...)` do system message.
 
@@ -124,7 +124,7 @@ App em modo teste: o refresh token expira em cerca de **7 dias**. Quando o calen
 5. Confira o **MCP Client**: *Endpoint* = essa mesma URL, transporte **HTTP Streamable**, autenticação **None**. O client roda dentro do container, então `localhost:5678` é o próprio n8n. Não troque por um IP da rede local.
 6. Salve e **publique** o workflow (botão *Publish* / *Active* no canto superior). Sem publicar, a URL de produção do MCP responde erro — é o primeiro item da tabela da aula.
 
-O Chat Trigger fica privado (`public: false`). A conversa é o chat embutido do editor, o mesmo *Chat Message* da aula. O prompt do agente é `{{ $json.chatInput }}`.
+O Chat Trigger está público (`public: true`). O modo segue *Hosted Chat*, padrão do nó. Com o workflow publicado, a URL de chat hospedada funciona fora do editor: abra o nó *When chat message received* e copie a URL de produção. Com `N8N_WEBHOOK_URL=http://localhost:5678/` ela tem a forma `http://localhost:5678/webhook/<webhookId>/chat`. Quem abrir esse endereço conversa com o agente sem login. Exponha essa URL só em localhost ou numa rede confiável. O Compose prende a porta `5678` a `127.0.0.1`; não publique o chat na internet, porque ele e o MCP deste exemplo não pedem autenticação. O chat embutido do editor, o mesmo *Chat Message* da aula, continua disponível. O prompt do agente é `{{ $json.chatInput }}`.
 
 System message, copiado da aula:
 
@@ -140,7 +140,7 @@ As quatro tools usam *Tool Description → Set Manually*, com o texto resumido d
 | Tool | Operação n8n | O que o modelo preenche |
 |---|---|---|
 | `create_google_calendar_event` | Create | `start`, `end` (fim = início + 30 min), `summary`, `description`, `attendee` |
-| `list_google_calendar_events` | Get Many, Return All | `start` (After), `end` (Before) e, se houver, `attendee_email` |
+| `list_google_calendar_events` | Get Many, Return All | `start` (After) e `end` (Before) obrigatórios; `attendee_email` opcional (default vazio no `$fromAI`, fora do `required`) |
 | `reschedule_google_calendar_event` | Update | `event_id`, `new_start`, `new_end` |
 | `delete_google_calendar_event` | Delete | `event_id`, depois de pedir o e-mail de quem pediu |
 
@@ -150,7 +150,7 @@ Não ative os dois workflows ao mesmo tempo se você editar os dois para o mesmo
 
 ## 5. Prompts para testar no chat
 
-Abra o workflow publicado e use o painel de chat.
+Abra o workflow publicado e use o painel de chat do editor, ou a URL hospedada do Chat Trigger. Essa URL é pública e sem login: use só em localhost ou numa rede confiável (seção 4).
 
 - `Quais compromissos eu tenho amanhã?`
 - `Marca uma reunião de 30 minutos amanhã às 14h com ana@exemplo.com. Título: proposta comercial. Descrição: alinhar escopo.`

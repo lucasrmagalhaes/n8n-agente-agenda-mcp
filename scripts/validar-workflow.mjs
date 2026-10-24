@@ -35,6 +35,15 @@ const SECRET_PATTERNS = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
 ];
 
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const seenIds = new Set();
+
+function claimId(file, label, id) {
+  if (typeof id !== "string" || !UUID_V4.test(id)) fail(file, `${label} não é UUID v4: ${id}`);
+  if (seenIds.has(id)) fail(file, `id repetido entre os workflows: ${id} (${label})`);
+  seenIds.add(id);
+}
+
 function fail(file, message) {
   throw new Error(`${file}: ${message}`);
 }
@@ -72,6 +81,16 @@ function validate(relative, { modelType, modelName, mcpPath }) {
       fail(relative, `${node.name} typeVersion ${node.typeVersion}, esperado ${expected}`);
     }
     if (!node.id || !Array.isArray(node.position)) fail(relative, `${node.name} sem id/position`);
+    claimId(relative, `${node.name} id`, node.id);
+    const expectsWebhook =
+      node.type === "@n8n/n8n-nodes-langchain.chatTrigger" ||
+      node.type === "@n8n/n8n-nodes-langchain.mcpTrigger";
+    if (expectsWebhook) {
+      if (!node.webhookId) fail(relative, `${node.name} sem webhookId`);
+      claimId(relative, `${node.name} webhookId`, node.webhookId);
+    } else if (node.webhookId) {
+      fail(relative, `${node.name} não deveria ter webhookId`);
+    }
   }
 
   const chat = byName.get("When chat message received");
@@ -84,6 +103,9 @@ function validate(relative, { modelType, modelName, mcpPath }) {
   if (!chat || !agent || !memory || !think || !client || !server || !model) {
     fail(relative, "nó obrigatório ausente");
   }
+
+  if (chat.parameters.public !== true) fail(relative, "Chat Trigger deve ser public: true");
+  if (chat.parameters.mode !== "hostedChat") fail(relative, "Chat Trigger deve usar hostedChat");
 
   if (agent.parameters.promptType !== "define") fail(relative, "promptType");
   if (agent.parameters.text !== "={{ $json.chatInput }}") fail(relative, "prompt do chat");
@@ -149,6 +171,18 @@ function validate(relative, { modelType, modelName, mcpPath }) {
   }
   if (!String(list.parameters.timeMin).includes("$fromAI('start'")) fail(relative, "timeMin");
   if (!String(list.parameters.timeMax).includes("$fromAI('end'")) fail(relative, "timeMax");
+  if (!/\$fromAI\(\s*'start'\s*,\s*'[^']*'\s*,\s*'string'\s*\)/.test(String(list.parameters.timeMin))) {
+    fail(relative, "start da listagem deve continuar obrigatório");
+  }
+  if (!/\$fromAI\(\s*'end'\s*,\s*'[^']*'\s*,\s*'string'\s*\)/.test(String(list.parameters.timeMax))) {
+    fail(relative, "end da listagem deve continuar obrigatório");
+  }
+  const attendeeQuery = String(list.parameters.options?.query ?? "");
+  if (
+    !/\$fromAI\(\s*'attendee_email'\s*,\s*'[^']*'\s*,\s*'string'\s*,\s*''\s*\)/.test(attendeeQuery)
+  ) {
+    fail(relative, "attendee_email deve ser opcional, com default vazio no $fromAI");
+  }
 
   const update = byName.get("reschedule_google_calendar_event");
   if (update.parameters.operation !== "update") fail(relative, "update");
